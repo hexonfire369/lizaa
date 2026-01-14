@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1.0">
+        <title>Walking Bone Centipede</title>
+        <style>
+            *{ margin:0; padding:0; box-sizing:border-box; }
+            body,html{ width:100%; height:100%; background-color:#0a0a0a; overflow:hidden; }
+            canvas{ display:block; }
+        </style>
+    </head>
+    <body>
+        <canvas id="canvas"></canvas>
+        <script>
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d");
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+
+            let mouse = { x: canvas.width / 2, y: canvas.height / 2 };
+            let time = 0;
+
+            addEventListener("mousemove", (e) => {
+                mouse.x = e.clientX;
+                mouse.y = e.clientY;
+            });
+
+            const segmentCount = 45;
+            const segmentLength = 10;
+            let segments = [];
+            for (let i = 0; i < segmentCount; i++) {
+                segments.push({ x: mouse.x, y: mouse.y, angle: 0 });
+            }
+
+            // Function to draw human-like bone joints
+            function drawBone(x1, y1, x2, y2, thickness) {
+                ctx.beginPath();
+                ctx.lineWidth = thickness;
+                ctx.strokeStyle = "white";
+                ctx.lineCap = "round";
+                ctx.moveTo(x1, y1);
+                ctx.lineTo(x2, y2);
+                ctx.stroke();
+
+                // Joint Knobs (Human style epiphysis)
+                ctx.fillStyle = "white";
+                ctx.beginPath(); ctx.arc(x1, y1, thickness * 0.8, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(x2, y2, thickness * 0.8, 0, Math.PI * 2); ctx.fill();
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                time += 0.08; 
+
+                // Follow logic with a distance gap
+                let head = segments[0];
+                const dxHead = mouse.x - head.x;
+                const dyHead = mouse.y - head.y;
+                const distHead = Math.hypot(dxHead, dyHead);
+                
+                if(distHead > 40) {
+                    head.x += dxHead * 0.05;
+                    head.y += dyHead * 0.05;
+                }
+
+                let prevX = head.x;
+                let prevY = head.y;
+
+                segments.forEach((seg, i) => {
+                    if(i !== 0) {
+                        const dx = prevX - seg.x;
+                        const dy = prevY - seg.y;
+                        seg.angle = Math.atan2(dy, dx);
+                        seg.x = prevX - Math.cos(seg.angle) * segmentLength;
+                        seg.y = prevY - Math.sin(seg.angle) * segmentLength;
+                    }
+
+                    // DRAWING LEGS (16 Legs / 8 Pairs)
+                    if (i >= 6 && i <= 30 && i % 3 === 0) {
+                        const sideIndex = i / 3;
+                        [1, -1].forEach(side => {
+                            // Walking Logic: Step cycle based on sine wave
+                            // Offset by side and position to create a "crawl" sequence
+                            const cycle = time + (i * 0.5) + (side === 1 ? Math.PI : 0);
+                            const stepProgress = Math.sin(cycle);
+                            const lift = Math.max(0, Math.cos(cycle)) * 15; // Only lift on half the cycle
+                            
+                            // Shoulder point
+                            const shX = seg.x + Math.cos(seg.angle + (Math.PI/2) * side) * 8;
+                            const shY = seg.y + Math.sin(seg.angle + (Math.PI/2) * side) * 8;
+
+                            // Knee point (moves forward and back)
+                            const kneeX = shX + Math.cos(seg.angle + (Math.PI/2) * side + (stepProgress * 0.5)) * 15;
+                            const kneeY = shY + Math.sin(seg.angle + (Math.PI/2) * side + (stepProgress * 0.5)) * 15 - lift;
+
+                            // Foot point
+                            const footX = kneeX + Math.cos(seg.angle + (Math.PI/2) * side) * 12 + (stepProgress * 10);
+                            const footY = kneeY + Math.sin(seg.angle + (Math.PI/2) * side) * 12 + lift;
+
+                            drawBone(shX, shY, kneeX, kneeY, 3);
+                            drawBone(kneeX, kneeY, footX, footY, 2);
+                        });
+                    }
+
+                    // SPINE BONES (Vertebrae style)
+                    if(i > 0) {
+                        drawBone(seg.x, seg.y, prevX, prevY, Math.max(1, 6 - i * 0.1));
+                        
+                        // Human-like Ribs/Pelvis bones
+                        if(i % 2 === 0 && i < 35) {
+                            const ribWidth = Math.max(4, 18 - i * 0.4);
+                            const rx = seg.x + Math.cos(seg.angle + Math.PI/2) * ribWidth;
+                            const ry = seg.y + Math.sin(seg.angle + Math.PI/2) * ribWidth;
+                            const lx = seg.x - Math.cos(seg.angle + Math.PI/2) * ribWidth;
+                            const ly = seg.y - Math.sin(seg.angle + Math.PI/2) * ribWidth;
+                            ctx.lineWidth = 1.5;
+                            ctx.beginPath();
+                            ctx.moveTo(lx, ly);
+                            ctx.lineTo(rx, ry);
+                            ctx.stroke();
+                        }
+                    }
+
+                    prevX = seg.x;
+                    prevY = seg.y;
+                });
+
+                requestAnimationFrame(draw);
+            }
+
+            draw();
+
+            window.addEventListener("resize", () => {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            });
+        </script>
+    </body>
+</html>
